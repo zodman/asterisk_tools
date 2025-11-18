@@ -1,0 +1,107 @@
+#!/usr/bin/env zxpy
+import rich.console
+from rich.text import Text
+
+c = rich.console.Console()
+
+
+def get_who(argv, channel_name):
+    who = " " * 10
+    is_voip = "voip" in argv
+    ast = " "
+    return who, ast
+    dis = "[bold red]DISPATCHER[/bold red]"
+    client = "[cyan]CLIENT    [/cyan]"
+    if is_voip:
+        if "PJSIP" in channel_name:
+            ast = "*"
+            who = dis
+        if "IAX2" in channel_name:
+            who = client
+    else:
+        if "PJSIP" in channel_name:
+            who = client
+        if "IAX2" in channel_name:
+            ast = "*"
+            who = dis
+    return who, ast
+
+
+def get_link(channel_name):
+    link = ""
+    where = "in pbx" if argv == "voip" else "in voip"
+    if "IAX2" in channel_name:
+        cmd = ~"docker exec enlite-$1 asterisk -rx 'iax2 show channels'"
+        for i in cmd.splitlines():
+            if channel_name in i:
+                chan = i.split()
+                _, _, trunk, link_ids, *_ = chan
+                _, id_to = link_ids.split("/")
+                link = f"~ [magenta]IAX2/{trunk}-{
+                    int(id_to)}[/magenta] {where}"
+    return link
+
+
+def display(d):
+    channel_name = d.get("Name")
+    caller_display = f"{d.get('Caller ID')} - {d.get('Caller ID Name')} "
+    who, ast = get_who(argv, channel_name)
+    link = get_link(channel_name)
+    ext = d.get("Extension", "")
+    len_ext = 15
+    if len(ext) > len_ext:
+        ext = f"{ext[0:6]}...{ext[-6:]}"
+    ext = ext.rjust(len_ext)
+    is_bold = "CBAnn" not in channel_name
+    style = f"yellow {'bold' if is_bold else ''}"
+    channel = Text(channel_name.rjust(23), style=style).markup
+
+    c.print(
+        f"{who}{ast} Caller:  [blue]{caller_display.ljust(21)}[/blue]"
+        f" ext: {ext} "
+        "[green]=>[/green] Channel: "
+        f"{channel} {link}"
+    )
+
+
+argv = (~"echo $1").strip()
+
+concise = ~"docker exec enlite-$1 asterisk -rx 'core show channels concise'"
+lines = concise.splitlines()
+c.print(f"ACTIVE CHANNELS enlite-{argv} (* using asterisk)")
+results = []
+for line in lines:
+    ln = line.split("!")
+    channel_name, ctx, exten, *_ = ln
+    bridge_id = ln[-2]
+    # print([channel_name, exten, bridge_id])
+    if "Message/ast" in channel_name or "CBAnn" in channel_name:
+        continue
+    cmd = f"docker exec enlite-$1  asterisk -rx 'core show channel {
+        channel_name}'"
+    show = ~f"{cmd:raw}"
+    d = {}
+    for ln in show.splitlines():
+        if ":" in ln:
+            char = ":"
+        elif "=" in ln:
+            char = "="
+        else:
+            continue
+        key, value, *_ = ln.split(char)
+        d.setdefault(key.strip(), value.strip())
+    if d != {}:
+        results.append(d)
+results = sorted(results, key=lambda x: x.get("Data"))
+last_data = ""
+for d in results:
+    data = d.get("Data").strip()
+    tmp_data = data
+    if "," in data:
+        data = data.split(",")[0]
+    if data != last_data:
+        c.rule(f"Data: {tmp_data}")
+        last_data = data
+    display(d)
+
+# vim: set ft=python:

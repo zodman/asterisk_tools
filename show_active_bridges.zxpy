@@ -1,0 +1,25 @@
+#!/usr/bin/env zxpy
+import rich.console
+import sys
+
+c = rich.console.Console()
+
+argv = ~"echo $1"
+c.print(f"== ACTIVE BRIDGES enlite-{argv.strip()} ==")
+cmd = ~f"docker exec enlite-$1 asterisk -rx 'confbridge list'"
+if len(cmd.splitlines()) == 2:
+    c.print("# empty")
+for i in cmd.splitlines()[2:]:
+    bridge_id, *_ = i.split()
+    cmd_bridge = f"confbridge list {bridge_id}"
+    cmd_full = f"docker exec enlite-{argv.strip()} asterisk -rx '{cmd_bridge}'"
+    c.print(f"$ {cmd_full}")
+    cmd = ~f"{cmd_full:raw}"
+    c.print(cmd)
+
+cmd = "pjsip show contacts"
+full_cmd = f"docker exec enlite-{argv.strip()} asterisk -rx '{cmd}'"
+c.print(f"$ {full_cmd}")
+cmd = ~f"{full_cmd:raw}"
+c.print(cmd.strip())
+# vim: set ft=python:

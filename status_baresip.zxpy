@@ -1,0 +1,36 @@
+#!/usr/bin/env zxpy
+from rich.console import Console
+from rich.text import Text
+
+c = Console()
+
+
+def display(cmd):
+    out = ~f" {cmd:raw} | nc -N localhost 5555 | grep ."
+    res = out.splitlines()
+    for ln in res:
+        if "Help" in ln:
+            break
+        if "ua:" in ln:
+            c.rule(ln)
+        else:
+            c.print(ln)
+    return out
+
+
+_, _, code = ~"nc -vzN localhost 5555"
+if code == 1:
+    c.print("baresip not running")
+    exit(1)
+
+output = ~"echo 'r' | nc -N localhost 5555 | grep ."
+for i in output.splitlines():
+    if i.startswith(">"):
+        text = Text.from_ansi(i)
+        c.print(f"[bold ]{text.markup}[/bold]")
+
+for i in range(3):
+    display("echo 'T'")
+    display("echo 'l'")
+
+# vim: set ft=python:
