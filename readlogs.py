@@ -29,9 +29,9 @@ def parse(ln):
     return r
 
 
-def main(lines, is_debug, no_gosub):
+def main(lines, is_debug, no_gosub, expand_json):
     for idx, ln in enumerate(lines):
-        txt = process(idx, ln, is_debug, no_gosub)
+        txt = process(idx, ln, is_debug, no_gosub, expand_json)
         if txt:
             c.print(txt.ljust(4), overflow="ellipsis")
 
@@ -46,8 +46,11 @@ def subprocess(r, expand=True):
         if colors:
             channels[r["channel"]] = next(colors)
 
-    if "jsonvariable" == r["op"]:
-        r["value"] = rich.json.JSON(r["value"][1:-1]).text.markup
+    if "jsonvariables" == r["op"]:
+        try:
+            r["value"] = rich.json.JSON(r["value"][1:-1]).text.markup
+        except Exception as e:
+            c.print('ERROR parsing json {r["value"]}')
     else:
         for op in ["set"]:
             if op in r["op"].lower():
@@ -59,14 +62,14 @@ def subprocess(r, expand=True):
             if "==" in r["value"]:
                 r["value"] = f":arrow_forward: [bold]{r['value']}[/bold]"
     r["op"] = r["op"].rjust(13 if expand else 0)
-    for op in ["conf", "dial", "hangup"]:
+    for op in ["conf", "dial", "hangup", "originate"]:
         if op in r["op"].lower():
             r["op"] = f"[bold yellow]{r['op']}[/bold yellow]"
 
     ext = r["extension"]
     if "C-" in ext:
         offset = 10
-        ext = ext[:offset] + "..." + ext[-1 * (offset - 1) :]
+        ext = ext[:offset] + "..." + ext[-1 * (offset - 1):]
     raw_ctx = f"{ext}@{r['context']}:{str(r['priority']).rjust(3)}".rjust(
         40 if expand else 0
     )
@@ -78,11 +81,12 @@ def subprocess(r, expand=True):
     chan = rich.text.Text(
         channel_txt, style=channels.get(r["channel"].strip(), "")
     ).markup
-    txt = padding + r"\[" + f"{ctx_}] [cyan]{r['op']}[/cyan]({chan}, {r['value']})"
+    txt = padding + r"\[" + f"{ctx_}] [cyan]{r['op']
+                                             }[/cyan]({chan}, {r['value']})"
     return txt
 
 
-def process(idx, ln, is_debug, no_gosub):
+def process(idx, ln, is_debug, no_gosub, expand_json=False):
     r = parse(ln)
     if not r and is_debug:
         txt = ln.strip()
@@ -106,7 +110,8 @@ def write_file(is_write_json):
     if is_write_json:
         with open(args.write, "w") as f:
             json.dump(output, f)
-        c.print(f"generate  {args.write}", soft_wrap=False, overflow="ellipsis")
+        c.print(f"generate  {args.write}",
+                soft_wrap=False, overflow="ellipsis")
 
 
 if __name__ == "__main__":
@@ -122,6 +127,7 @@ if __name__ == "__main__":
     )
 
     arg.add_argument("--no-gosub", action="store_true")
+    arg.add_argument("--expand-json", action="store_true")
 
     args = arg.parse_args()
     is_write_json = args.write is not None
@@ -129,7 +135,7 @@ if __name__ == "__main__":
     no_gosub = args.no_gosub
 
     try:
-        main(sys.stdin, is_debug, no_gosub)
+        main(sys.stdin, is_debug, no_gosub, args.expand_json)
     except KeyboardInterrupt:
         pass
     finally:

@@ -1,6 +1,7 @@
 #!/usr/bin/env zxpy
 import rich.console
 from rich.text import Text
+from rich import print
 
 c = rich.console.Console()
 
@@ -9,7 +10,6 @@ def get_who(argv, channel_name):
     who = " " * 10
     is_voip = "voip" in argv
     ast = " "
-    return who, ast
     dis = "[bold red]DISPATCHER[/bold red]"
     client = "[cyan]CLIENT    [/cyan]"
     if is_voip:
@@ -49,17 +49,21 @@ def display(d):
     link = get_link(channel_name)
     ext = d.get("Extension", "")
     len_ext = 15
+    size = 6
     if len(ext) > len_ext:
-        ext = f"{ext[0:6]}...{ext[-6:]}"
+        ext = f"{ext[0:size]}...{ext[-1 * size:]}"
     ext = ext.rjust(len_ext)
     is_bold = "CBAnn" not in channel_name
     style = f"yellow {'bold' if is_bold else ''}"
     channel = Text(channel_name.rjust(23), style=style).markup
-
+    ctx = d.get("Context", "").ljust(15)
+    app = d.get("Application", "").ljust(10)
+    prior = d.get("Priority", "").rjust(2)
+    from_ = d.get("FROM", d.get("from", "")).rjust(8)
     c.print(
-        f"{who}{ast} Caller:  [blue]{caller_display.ljust(21)}[/blue]"
-        f" ext: {ext} "
-        "[green]=>[/green] Channel: "
+        f"{who}{ast} ({from_}) Caller: [blue]{caller_display.ljust(25)}[/blue]"
+        r"\[" + f"{ext}[yellow]@[/yellow]{ctx}: {prior}] {app} "
+        "[green]=>[/green] Chan: "
         f"{channel} {link}"
     )
 
@@ -72,7 +76,7 @@ c.print(f"ACTIVE CHANNELS enlite-{argv} (* using asterisk)")
 results = []
 for line in lines:
     ln = line.split("!")
-    channel_name, ctx, exten, *_ = ln
+    channel_name, ctx, exten, context, *_ = ln
     bridge_id = ln[-2]
     # print([channel_name, exten, bridge_id])
     if "Message/ast" in channel_name or "CBAnn" in channel_name:
