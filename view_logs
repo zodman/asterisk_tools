@@ -3,4 +3,4 @@ cp output.log tmp1.log
 cat tmp1.log | python readlogs.py -w tmp1.json
 echo 'Channel in logs'
 cat tmp1.json | jq -r '.[].channel' | sort -u
-cat tmp1.log | python readlogs.py -d | less -R
+cat tmp1.log | python readlogs.py -d --no-gosub | less -R
