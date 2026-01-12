@@ -18,8 +18,25 @@ colors = itertools.cycle(
     ["red", "blue_violet", "plum2", "blue", "magenta", "cyan", "dark_green"]
 )
 c = rich.console.Console(force_terminal=True)
-pattern = "    -- Executing \\[%{GREEDYDATA:extension}@%{GREEDYDATA:context}:%{INT:priority}\\] %{WORD:op}\(%{QS:channel}, %{GREEDYDATA:value}\) in new stack\r\n"
-grok = Grok(pattern, fullmatch=False)
+
+prefix_begin_line = "    -- "
+begin_line = prefix_begin_line + "Executing"
+context_line = " \\[%{GREEDYDATA:extension}@%{GREEDYDATA:context}:%{INT:priority}\\] "
+function_line = r"%{WORD:op}\(%{QS:channel},"
+greedy_line = r" %{GREEDYDATA:value}\)"
+
+end_line = " in new stack\r\n"
+
+pattern = begin_line + context_line + function_line + greedy_line + end_line
+
+grok = Grok(pattern, fullmatch=True)
+
+grok_message = Grok(
+    (begin_line + context_line + function_line + "%{GREEDYDATA:any}"),
+    fullmatch=False,
+)
+
+
 channels = {}
 output = []
 
@@ -49,7 +66,7 @@ def subprocess(r, expand=True):
     if "jsonvariables" == r["op"]:
         try:
             r["value"] = rich.json.JSON(r["value"][1:-1]).text.markup
-        except Exception as e:
+        except Exception:
             c.print('ERROR parsing json {r["value"]}')
     else:
         for op in ["set"]:
@@ -86,17 +103,36 @@ def subprocess(r, expand=True):
     return txt
 
 
+buffer = []
+
+
 def process(idx, ln, is_debug, no_gosub, expand_json=False):
+    global buffer
     r = parse(ln)
     if not r and is_debug:
         txt = ln.strip()
+
+        if len(buffer) > 0:
+            buffer.append(ln)
+        if txt.startswith(begin_line.strip()) and not txt.endswith(end_line.strip()):
+            # message detected
+            r2 = grok_message.match(ln)
+            if r2 is not None:
+                buffer.append(ln)
+        if not txt.startswith(begin_line.strip()) and txt.endswith(end_line.strip()):
+            new_line = "".join(buffer)
+            new_line = new_line.replace("\r\n" + prefix_begin_line, " ")
+            buffer = []
+            r = parse(new_line)
+
         if "exited non-zero on" in txt:
             txt = "[yellow bold on red ] ERROR: [/yellow bold on red ]" + txt
         padding = " " * 32
         if "Asterisk Ready" in txt:
             c.rule(txt)
             return
-        c.print(padding + txt)
+        if not r and len(buffer) == 0:
+            c.print(padding + txt)
     if not r:
         return
 

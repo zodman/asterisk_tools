@@ -3,14 +3,11 @@ import itertools
 import json
 import sys
 import warnings
-
 import rich.console
 import rich.json
 import rich.text
 from rich import print_json as p
 from pygrok import Grok
-
-
 from signal import signal, SIGPIPE, SIG_DFL
 
 signal(SIGPIPE, SIG_DFL)

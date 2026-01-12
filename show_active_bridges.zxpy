@@ -1,12 +1,12 @@
 #!/usr/bin/env zxpy
 import rich.console
-import sys
+from rich import print_json
 
 c = rich.console.Console()
 
 argv = ~"echo $1"
 c.print(f"== ACTIVE BRIDGES enlite-{argv.strip()} ==")
-cmd = ~f"docker exec enlite-$1 asterisk -rx 'confbridge list'"
+cmd = ~"docker exec enlite-$1 asterisk -rx 'confbridge list'"
 if len(cmd.splitlines()) == 2:
     c.print("# empty with confbridge list")
 for i in cmd.splitlines()[2:]:
