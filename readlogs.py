@@ -72,6 +72,10 @@ def subprocess(r, expand=True):
         for op in ["set"]:
             if op in r["op"].lower():
                 r["value"] = r["value"][1:-1]
+            value = r["value"]
+            # DISPLAY ICP message
+            if "IIX:BORROW" in value and r["op"].lower() == "set":
+                r["value"] = "\n".join(r["value"].split("\r")[:-1])
 
     for op in ["noop", "verbose"]:
         if op in r["op"].lower():
@@ -121,7 +125,7 @@ def process(idx, ln, is_debug, no_gosub, expand_json=False):
                 buffer.append(ln)
         if not txt.startswith(begin_line.strip()) and txt.endswith(end_line.strip()):
             new_line = "".join(buffer)
-            new_line = new_line.replace("\r\n" + prefix_begin_line, " ")
+            new_line = new_line.replace("\r\n" + prefix_begin_line, "\r")
             buffer = []
             r = parse(new_line)
 
