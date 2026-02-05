@@ -1,0 +1,20 @@
+#!/usr/bin/env zxpy
+import rich.console
+from rich import print_json
+
+c = rich.console.Console()
+
+argv = ~"echo $1"
+cmd = ~"docker exec enlite-$1 asterisk -rx 'pjsip show endpoints'"
+c.print(cmd)
+
+cmd = ~"docker exec enlite-$1 asterisk -rx 'pjsip show registrations'"
+c.print(cmd)
+
+
+# cmd = "pjsip show contacts"
+# full_cmd = f"docker exec enlite-{argv.strip()} asterisk -rx '{cmd}'"
+# c.print(f"$ {full_cmd}")
+# cmd = ~f"{full_cmd:raw}"
+# c.print(cmd.strip())
+# vim: set ft=python:

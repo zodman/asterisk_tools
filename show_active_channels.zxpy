@@ -1,8 +1,10 @@
 #!/usr/bin/env zxpy
-import rich.console
-from rich.text import Text
-from rich import print, print_json
 import sys
+from rich import print, print_json
+from rich.text import Text
+import rich.console
+import site
+
 
 c = rich.console.Console()
 
