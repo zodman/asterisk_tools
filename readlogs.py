@@ -1,3 +1,6 @@
+#!/usr/bin/env nix-shell
+#!nix-shell -i python3
+
 import argparse
 import itertools
 import json
@@ -90,7 +93,7 @@ def subprocess(r, expand=True):
     ext = r["extension"]
     if "C-" in ext:
         offset = 10
-        ext = ext[:offset] + "..." + ext[-1 * (offset - 1):]
+        ext = ext[:offset] + "..." + ext[-1 * (offset - 1) :]
     raw_ctx = f"{ext}@{r['context']}:{str(r['priority']).rjust(3)}".rjust(
         40 if expand else 0
     )
@@ -102,8 +105,7 @@ def subprocess(r, expand=True):
     chan = rich.text.Text(
         channel_txt, style=channels.get(r["channel"].strip(), "")
     ).markup
-    txt = padding + r"\[" + f"{ctx_}] [cyan]{r['op']
-                                             }[/cyan]({chan}, {r['value']})"
+    txt = padding + r"\[" + f"{ctx_}] [cyan]{r['op']}[/cyan]({chan}, {r['value']})"
     return txt
 
 
@@ -150,8 +152,7 @@ def write_file(is_write_json):
     if is_write_json:
         with open(args.write, "w") as f:
             json.dump(output, f)
-        c.print(f"generate  {args.write}",
-                soft_wrap=False, overflow="ellipsis")
+        c.print(f"generate  {args.write}", soft_wrap=False, overflow="ellipsis")
 
 
 if __name__ == "__main__":
