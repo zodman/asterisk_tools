@@ -1,0 +1,13 @@
+#!/usr/bin/env nix-shell
+#!nix-shell -i bash -p python313  python313Packages.rich python313Packages.pip git
+
+# --- NIX/BASH SECTION ---
+# This part only runs once to set up the environment.
+if [ ! -d ".venv" ]; then
+  echo "Setting up environment and installing pygrok from GitHub..."
+  python3 -m venv --system-site-packages .venv
+  .venv/bin/pip install -q git+https://github.com/theforeman/pygrok.git
+fi
+
+# Hand over control to the Python interpreter inside the virtual env
+exec .venv/bin/python3 "$0" "$@"

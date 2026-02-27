@@ -93,7 +93,7 @@ def subprocess(r, expand=True):
     ext = r["extension"]
     if "C-" in ext:
         offset = 10
-        ext = ext[:offset] + "..." + ext[-1 * (offset - 1) :]
+        ext = ext[:offset] + "..." + ext[-1 * (offset - 1):]
     raw_ctx = f"{ext}@{r['context']}:{str(r['priority']).rjust(3)}".rjust(
         40 if expand else 0
     )
@@ -105,7 +105,8 @@ def subprocess(r, expand=True):
     chan = rich.text.Text(
         channel_txt, style=channels.get(r["channel"].strip(), "")
     ).markup
-    txt = padding + r"\[" + f"{ctx_}] [cyan]{r['op']}[/cyan]({chan}, {r['value']})"
+    txt = padding + r"\[" + f"{ctx_}] [cyan]{r['op']
+                                             }[/cyan]({chan}, {r['value']})"
     return txt
 
 
@@ -143,6 +144,9 @@ def process(idx, ln, is_debug, no_gosub, expand_json=False):
         return
 
     output.append(r.copy())
+    # IGNORE list
+    if "IIX:BORROW" in r["value"]:
+        r["value"] = r["value"][:30] + "....."
     if "gosub" in r["context"] and no_gosub:
         return
     return subprocess(r)
@@ -152,7 +156,8 @@ def write_file(is_write_json):
     if is_write_json:
         with open(args.write, "w") as f:
             json.dump(output, f)
-        c.print(f"generate  {args.write}", soft_wrap=False, overflow="ellipsis")
+        c.print(f"generate  {args.write}",
+                soft_wrap=False, overflow="ellipsis")
 
 
 if __name__ == "__main__":
