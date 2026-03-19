@@ -22,13 +22,13 @@ colors = itertools.cycle(
 )
 c = rich.console.Console(force_terminal=True)
 
-prefix_begin_line = "    -- "
+prefix_begin_line = "(\r|)" + " " * 4 + "-- "
 begin_line = prefix_begin_line + "Executing"
 context_line = " \\[%{GREEDYDATA:extension}@%{GREEDYDATA:context}:%{INT:priority}\\] "
 function_line = r"%{WORD:op}\(%{QS:channel},"
 greedy_line = r" %{GREEDYDATA:value}\)"
 
-end_line = " in new stack\r\n"
+end_line = " in new stack(\n|\r\n)"
 
 pattern = begin_line + context_line + function_line + greedy_line + end_line
 
