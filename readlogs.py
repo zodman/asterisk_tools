@@ -22,13 +22,15 @@ colors = itertools.cycle(
 )
 c = rich.console.Console(force_terminal=True)
 
-prefix_begin_line = "(\r|)" + " " * 4 + "-- "
+_prefix_begin_line = " " * 4 + "-- "
+prefix_begin_line = _prefix_begin_line
 begin_line = prefix_begin_line + "Executing"
 context_line = " \\[%{GREEDYDATA:extension}@%{GREEDYDATA:context}:%{INT:priority}\\] "
 function_line = r"%{WORD:op}\(%{QS:channel},"
 greedy_line = r" %{GREEDYDATA:value}\)"
 
-end_line = " in new stack(\n|\r\n)"
+_end_line = " in new stack("
+end_line = _end_line + "\n|\r\n)"
 
 pattern = begin_line + context_line + function_line + greedy_line + end_line
 
@@ -118,17 +120,21 @@ def process(idx, ln, is_debug, no_gosub, expand_json=False):
     r = parse(ln)
     if not r and is_debug:
         txt = ln.strip()
+        #
+        # if len(buffer) > 0:
+        #     buffer.append(ln)
 
-        if len(buffer) > 0:
-            buffer.append(ln)
-        if txt.startswith(begin_line.strip()) and not txt.endswith(end_line.strip()):
-            # message detected
-            r2 = grok_message.match(ln)
-            if r2 is not None:
-                buffer.append(ln)
-        if not txt.startswith(begin_line.strip()) and txt.endswith(end_line.strip()):
+        # if txt.startswith(begin_line.strip()) and not txt.endswith(_end_line.strip()):
+        #     # message detected
+        #     r2 = grok_message.match(ln)
+        #     if r2 is not None:
+        #         buffer.append(ln)
+
+        if not txt.startswith(begin_line.strip()) and txt.endswith(_end_line):
             new_line = "".join(buffer)
             new_line = new_line.replace("\r\n" + prefix_begin_line, "\r")
+            if len(buffer) > 0:
+                assert False, (buffer, new_line)
             buffer = []
             r = parse(new_line)
 
@@ -161,7 +167,7 @@ def write_file(is_write_json):
 
 
 if __name__ == "__main__":
-    arg = argparse.ArgumentParser(prog="asterisk-loggger-viewer")
+    arg = argparse.ArgumentParser(prog="asterisk-logger-viewer")
     arg.add_argument(
         "--debug", "-d", action="store_true", help="show non dialplan instructions"
     )
@@ -173,7 +179,7 @@ if __name__ == "__main__":
     )
 
     arg.add_argument("--no-gosub", action="store_true")
-    arg.add_argument("--expand-json", action="store_true")
+    arg.add_argument("--expand-json", action="store_true", default=False)
 
     args = arg.parse_args()
     is_write_json = args.write is not None
