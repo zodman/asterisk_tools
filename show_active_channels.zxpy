@@ -73,7 +73,7 @@ def display(d):
         return
 
     c.print(
-        f"{who}{ast} ({from_}) Caller: [blue]{caller_display.ljust(25)}[/blue]"
+        f"{who}{ast} ({from_}) Caller: [blue]{caller_display.ljust(32)}[/blue]"
         r"\[" + f"{ext}[yellow]@[/yellow]{ctx}: {prior}] {app} "
         "[green]=>[/green] Chan: "
         f"{channel} {link}"
