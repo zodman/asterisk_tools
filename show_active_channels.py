@@ -1,25 +1,21 @@
-import sys
-from rich import print, print_json
+from rich import print_json
 from rich.text import Text
 import rich.console
-
+import argparse
 import subprocess
 
-is_voip = False
-for i in sys.argv:
-    if "voip" in i:
-        is_voip = True
+parser = argparse.ArgumentParser(description="Show active Asterisk channels")
+parser.add_argument("container", help="Asterisk docker container name")
+parser.add_argument("--json", action="store_true",
+                    help="Output in JSON format")
+parser.add_argument("--devsys3", action="store_true", help="Run on devsys3")
 
-container = sys.argv[1]
+args, unknown = parser.parse_known_args()
 
-is_json = False
-if "--json" in sys.argv:
-    is_json = True
-
-is_devsys3 = False
-
-if "--devsys3" in sys.argv:
-    is_devsys3 = True
+container = args.container
+is_json = args.json
+is_devsys3 = args.devsys3
+is_voip = "voip" in container
 
 
 def run(cmd):
@@ -72,7 +68,8 @@ def get_link(channel_name):
                 chan = i.split()
                 _, _, trunk, link_ids, *_ = chan
                 _, id_to = link_ids.split("/")
-                link = f"~ [magenta]IAX2/{trunk}-{int(id_to)}[/magenta] {where}"
+                link = f"~ [magenta]IAX2/{trunk}-{
+                    int(id_to)}[/magenta] {where}"
     return link
 
 
@@ -88,7 +85,7 @@ def display(d):
     len_ext = 15
     size = 6
     if len(ext) > len_ext:
-        ext = f"{ext[0:size]}...{ext[-1 * size :]}"
+        ext = f"{ext[0:size]}...{ext[-1 * size:]}"
     ext = ext.rjust(len_ext)
     is_bold = "CBAnn" not in channel_name
     style = f"yellow {'bold' if is_bold else ''}"
@@ -98,11 +95,13 @@ def display(d):
     prior = d.get("Priority", "").rjust(2)
     from_ = d.get("FROM", d.get("from", "")).rjust(8)
 
-    if "--json" in sys.argv:
+    if is_json:
         return
 
     c.print(
-        f"{who}{ast} ({from_}) Caller: [blue]{caller_display[:30].ljust(30)}{'...' if len(caller_display) > 30 else '   '}[/blue]"
+        f"{who}{ast} ({from_}) Caller: [blue]{caller_display[:30].ljust(30)}{
+            '...' if len(caller_display) > 30 else '   '
+        }[/blue]"
         r"\[" + f"{ext}[yellow]@[/yellow]{ctx}: {prior}] {app} "
         "[green]=>[/green] Chan: "
         f"{channel} {link}"
@@ -123,7 +122,8 @@ for line in lines:
     # print([channel_name, exten, bridge_id])
     if "Message/ast" in channel_name or "CBAnn" in channel_name:
         continue
-    cmd = f" docker exec {container}  asterisk -rx 'core show channel {channel_name}'"
+    cmd = f" docker exec {
+        container}  asterisk -rx 'core show channel {channel_name}'"
     show = run(cmd)
     d = {}
     for ln in show.splitlines():
