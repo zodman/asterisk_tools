@@ -16,14 +16,20 @@ is_json = False
 if "--json" in sys.argv:
     is_json = True
 
-preffix = ""
-if len(sys.argv) > 2:
-    preffix = sys.argv[2]
+is_devsys3 = False
+
+if "--devsys3" in sys.argv:
+    is_devsys3 = True
 
 
 def run(cmd):
+    if is_devsys3:
+        cmd_run = f'ssh devsys3 -t "sudo {cmd}"'
+    else:
+        cmd_run = cmd
+
     return subprocess.run(
-        cmd,
+        cmd_run,
         shell=True,
         check=True,
         capture_output=True,
@@ -66,8 +72,7 @@ def get_link(channel_name):
                 chan = i.split()
                 _, _, trunk, link_ids, *_ = chan
                 _, id_to = link_ids.split("/")
-                link = f"~ [magenta]IAX2/{trunk}-{
-                    int(id_to)}[/magenta] {where}"
+                link = f"~ [magenta]IAX2/{trunk}-{int(id_to)}[/magenta] {where}"
     return link
 
 
@@ -83,7 +88,7 @@ def display(d):
     len_ext = 15
     size = 6
     if len(ext) > len_ext:
-        ext = f"{ext[0:size]}...{ext[-1 * size:]}"
+        ext = f"{ext[0:size]}...{ext[-1 * size :]}"
     ext = ext.rjust(len_ext)
     is_bold = "CBAnn" not in channel_name
     style = f"yellow {'bold' if is_bold else ''}"
@@ -97,28 +102,28 @@ def display(d):
         return
 
     c.print(
-        f"{who}{ast} ({from_}) Caller: [blue]{caller_display.ljust(32)}[/blue]"
+        f"{who}{ast} ({from_}) Caller: [blue]{caller_display[:30].ljust(30)}{'...' if len(caller_display) > 30 else '   '}[/blue]"
         r"\[" + f"{ext}[yellow]@[/yellow]{ctx}: {prior}] {app} "
         "[green]=>[/green] Chan: "
         f"{channel} {link}"
     )
 
 
-concise = run(
-    f"{preffix} docker exec {container} asterisk -rx 'core show channels concise'"
-)
+cmd = f"docker exec {container} asterisk -rx 'core show channels concise'"
+concise = run(cmd)
 lines = concise.splitlines()
 results = []
+
 for line in lines:
+    if "LC_ALL" in line:
+        continue
     ln = line.split("!")
     channel_name, ctx, exten, context, *_ = ln
     bridge_id = ln[-2]
     # print([channel_name, exten, bridge_id])
     if "Message/ast" in channel_name or "CBAnn" in channel_name:
         continue
-    cmd = f"{preffix} docker exec {container}  asterisk -rx 'core show channel {
-        channel_name
-    }'"
+    cmd = f" docker exec {container}  asterisk -rx 'core show channel {channel_name}'"
     show = run(cmd)
     d = {}
     for ln in show.splitlines():
@@ -147,5 +152,4 @@ for d in results:
 
 if is_json:
     print_json(data=DATA)
-
 # vim: set ft=python:
