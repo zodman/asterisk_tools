@@ -9,6 +9,7 @@ parser.add_argument("container", help="Asterisk docker container name")
 parser.add_argument("--json", action="store_true",
                     help="Output in JSON format")
 parser.add_argument("--devsys3", action="store_true", help="Run on devsys3")
+parser.add_argument("--plain", action="store_true", help="plain")
 
 args, unknown = parser.parse_known_args()
 
@@ -16,6 +17,7 @@ container = args.container
 is_json = args.json
 is_devsys3 = args.devsys3
 is_voip = "voip" in container
+is_plain = args.plain
 
 
 def run(cmd):
@@ -36,6 +38,8 @@ def run(cmd):
 c = rich.console.Console()
 
 DATA = {}
+
+bridge_key = "Bridge ID"
 
 
 def get_who(channel_name):
@@ -74,7 +78,8 @@ def get_link(channel_name):
 
 
 def display(d):
-    bridge_name = d.get("Data").split(",")[0]
+    # bridge_name = d.get("Data").split(",")[0]
+    bridge_name = d.get(bridge_key)
     DATA.setdefault(bridge_name, [])
     DATA[bridge_name].append(d)
     channel_name = d.get("Name")
@@ -102,9 +107,10 @@ def display(d):
         f"{who}{ast} ({from_}) Caller: [blue]{caller_display[:30].ljust(30)}{
             '...' if len(caller_display) > 30 else '   '
         }[/blue]"
-        r"\[" + f"{ext}[yellow]@[/yellow]{ctx}: {prior}] {app} "
-        "[green]=>[/green] Chan: "
-        f"{channel} {link}"
+        r"\[" + f"{ext}[yellow]@[/yellow]{ctx}: {prior}]"
+        f" App: {app} "
+        f"[green]=>[/green] "
+        f"Chan: {channel} {link}"
     )
 
 
@@ -119,9 +125,8 @@ for line in lines:
     ln = line.split("!")
     channel_name, ctx, exten, context, *_ = ln
     bridge_id = ln[-2]
-    # print([channel_name, exten, bridge_id])
-    if "Message/ast" in channel_name or "CBAnn" in channel_name:
-        continue
+    # if "Message/ast" in channel_name or "CBAnn" in channel_name:
+    #     continue
     cmd = f" docker exec {
         container}  asterisk -rx 'core show channel {channel_name}'"
     show = run(cmd)
@@ -138,15 +143,15 @@ for line in lines:
     if d != {}:
         results.append(d)
 
-results = sorted(results, key=lambda x: x.get("Data"))
+results = sorted(results, key=lambda x: x.get(bridge_key, ""))
 last_data = ""
 for d in results:
-    data = d.get("Data").strip()
+    data = d.get(bridge_key, "").strip()
     tmp_data = data
     if "," in data:
         data = data.split(",")[0]
     if data != last_data:
-        c.rule(f"Data: {tmp_data}")
+        c.rule(f"{bridge_key}: {tmp_data}")
         last_data = data
     display(d)
 
