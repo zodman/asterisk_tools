@@ -4,6 +4,7 @@
 import argparse
 import itertools
 import json
+import re
 import sys
 import warnings
 
@@ -22,7 +23,7 @@ colors = itertools.cycle(
 )
 c = rich.console.Console(force_terminal=True)
 
-_prefix_begin_line = " " * 4 + "-- "
+_prefix_begin_line = r"\s*-- "
 prefix_begin_line = _prefix_begin_line
 begin_line = prefix_begin_line + "Executing"
 context_line = " \\[%{GREEDYDATA:extension}@%{GREEDYDATA:context}:%{INT:priority}\\] "
@@ -72,7 +73,7 @@ def subprocess(r, expand=True):
         try:
             r["value"] = rich.json.JSON(r["value"][1:-1]).text.markup
         except Exception:
-            c.print('ERROR parsing json {r["value"]}')
+            c.print(f'ERROR parsing json {r["value"]}')
     else:
         for op in ["set"]:
             if op in r["op"].lower():
@@ -80,13 +81,14 @@ def subprocess(r, expand=True):
             value = r["value"]
             # DISPLAY ICP message
             if "IIX:BORROW" in value and r["op"].lower() == "set":
-                r["value"] = "\n".join(r["value"].split("\r")[:-1])
+                r["value"] = r["value"].replace("\r", " ").replace("\n", " ")
 
     for op in ["noop", "verbose"]:
         if op in r["op"].lower():
             r["value"] = f"[yellow]{r['value']}[/yellow]"
             if "==" in r["value"]:
                 r["value"] = f":arrow_forward: [bold]{r['value']}[/bold]"
+    
     r["op"] = r["op"].rjust(13 if expand else 0)
     for op in ["conf", "dial", "hangup", "originate"]:
         if op in r["op"].lower():
@@ -107,8 +109,7 @@ def subprocess(r, expand=True):
     chan = rich.text.Text(
         channel_txt, style=channels.get(r["channel"].strip(), "")
     ).markup
-    txt = padding + r"\[" + f"{ctx_}] [cyan]{r['op']
-                                             }[/cyan]({chan}, {r['value']})"
+    txt = padding + r"\[" + f"{ctx_}] [cyan]{r['op']}[/cyan]({chan}, {r['value']})"
     return txt
 
 
@@ -117,45 +118,64 @@ buffer = []
 
 def process(idx, ln, is_debug, no_gosub, expand_json=False):
     global buffer
-    r = parse(ln)
-    if not r and is_debug:
+    
+    # Identify if this line starts a new execution block
+    if re.search(r'^\s*-- Executing', ln):
+        if buffer and is_debug:
+            # Flush previous incomplete buffer as debug text
+            # (Note: we can't easily return multiple lines here without changing main, 
+            # so we just print them and return None)
+            for b_ln in buffer:
+                c.print(" " * 32 + b_ln.strip())
+        buffer = [ln]
+        # If it also ends in the same line, process it immediately
+        if " in new stack" not in ln:
+            return None
+    
+    if buffer:
+        if ln not in buffer: # Avoid double adding if begin_line check already added it
+            buffer.append(ln)
+        
+        if " in new stack" not in ln:
+            return None
+        
+        # Block is complete
+        current_buffer = buffer
+        buffer = []
+        
+        # Normalize: Join lines and remove prefix "-- " from subsequent lines
+        normalized = current_buffer[0].rstrip("\r\n")
+        for extra in current_buffer[1:]:
+            # Use space to keep the entire block on one line
+            cleaned = re.sub(r'^\s*--\s*', '', extra)
+            normalized += " " + cleaned.strip()
+        
+        if not normalized.endswith("\n"):
+            normalized += "\n"
+        
+        r = parse(normalized)
+        if r:
+            output.append(r.copy())
+            if "gosub" in r["context"] and no_gosub:
+                return None
+            return subprocess(r)
+        elif is_debug:
+            # Return joined block as raw text
+            return "\n".join([" " * 32 + b.strip() for b in current_buffer])
+        return None
+
+    # Not in a block
+    if is_debug:
         txt = ln.strip()
-        #
-        # if len(buffer) > 0:
-        #     buffer.append(ln)
-
-        # if txt.startswith(begin_line.strip()) and not txt.endswith(_end_line.strip()):
-        #     # message detected
-        #     r2 = grok_message.match(ln)
-        #     if r2 is not None:
-        #         buffer.append(ln)
-
-        if not txt.startswith(begin_line.strip()) and txt.endswith(_end_line):
-            new_line = "".join(buffer)
-            new_line = new_line.replace("\r\n" + prefix_begin_line, "\r")
-            if len(buffer) > 0:
-                assert False, (buffer, new_line)
-            buffer = []
-            r = parse(new_line)
-
         if "exited non-zero on" in txt:
             txt = "[yellow bold on red ] ERROR: [/yellow bold on red ]" + txt
         padding = " " * 32
         if "Asterisk Ready" in txt:
             c.rule(txt)
-            return
-        if not r and len(buffer) == 0:
-            c.print(padding + txt)
-    if not r:
-        return
-
-    output.append(r.copy())
-    # IGNORE list
-    if "IIX:BORROW" in r["value"]:
-        r["value"] = r["value"][:30] + "....."
-    if "gosub" in r["context"] and no_gosub:
-        return
-    return subprocess(r)
+            return None
+        return padding + txt
+    
+    return None
 
 
 def write_file(is_write_json):
